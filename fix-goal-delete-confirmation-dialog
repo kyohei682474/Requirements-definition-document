@@ -1,0 +1,89 @@
+# ゴール削除確認UI統一 仕様書
+
+## 1. 概要
+
+ゴール削除時の確認UIを統一し、ユーザーが削除対象を明確に認識できるようにする。
+
+## 2. 現状の問題点
+
+| 問題 | 詳細 |
+|------|------|
+| UI方式の不統一 | AlertDialog（ゴール詳細）とブラウザconfirm（一覧・子ゴール）が混在 |
+| メッセージの不統一 | "本当に削除しますか？" / "このロードマップを削除" 等、表現がバラバラ |
+| ゴール名が表示されない | どのゴールを削除するか一目で分からない |
+
+## 3. 変更後の仕様
+
+### 3.1 UI方式
+
+- **AlertDialog（shadcn）** に統一
+- デザインの統一性、ローディング状態の表示が可能
+
+### 3.2 メッセージ形式
+
+```
+タイトル: 「[ゴール名]」を削除しますか？
+説明文: なし
+ボタン: キャンセル / 削除
+```
+
+**例:**
+
+```
+「Q4売上目標達成」を削除しますか？
+
+[キャンセル] [削除]
+```
+
+### 3.3 ゴール名が長い場合
+
+- 最大表示文字数: 30文字
+- 超過時: 末尾を「...」で省略
+- 例: 「2024年度第4四半期における売上目...」を削除しますか？
+
+## 4. 対象ファイル
+
+| ファイル | 現状 | 変更内容 |
+|----------|------|----------|
+| `src/features/goals/[id]/goal-details-header/_components/DeleteObjectiveMenuItem.tsx` | AlertDialog使用、ゴール名なし | ゴール名を表示 |
+| `src/goals/components/GoalListItem.tsx` | ブラウザconfirm | AlertDialogに変更、ゴール名を表示 |
+| `src/goals/[id]/components/EditableChildGoalsList.tsx` | ブラウザconfirm | AlertDialogに変更、ゴール名を表示 |
+
+## 5. 実装方針
+
+### 5.1 DeleteObjectiveMenuItem.tsx
+
+- `objectiveId` に加えて `objectiveTitle` を props で受け取る
+- タイトルを動的に表示
+
+### 5.2 GoalListItem.tsx / EditableChildGoalsList.tsx
+
+- ブラウザの `confirm()` を削除
+- AlertDialog コンポーネントを追加
+- 既存の goal/objective オブジェクトから title を取得
+
+## 6. コンポーネント構造（参考）
+
+```tsx
+<AlertDialog>
+  <AlertDialogTrigger asChild>
+    <DropdownMenuItem>
+      <Trash2 className="h-4 w-4" />
+      削除
+    </DropdownMenuItem>
+  </AlertDialogTrigger>
+  <AlertDialogContent>
+    <AlertDialogHeader>
+      <AlertDialogTitle>
+        「{truncate(goalTitle, 30)}」を削除しますか？
+      </AlertDialogTitle>
+    </AlertDialogHeader>
+    <AlertDialogFooter>
+      <AlertDialogCancel>キャンセル</AlertDialogCancel>
+      <AlertDialogAction onClick={handleDelete}>
+        {isDeleting ? "削除中..." : "削除"}
+      </AlertDialogAction>
+    </AlertDialogFooter>
+  </AlertDialogContent>
+</AlertDialog>
+```
