@@ -1,0 +1,51 @@
+## 概要
+`/test/notifications`ページにおいて、通知一覧のユーザーアバターが実際の画像ではなくフォールバックアイコン（CircleUser）で表示される不具合を修正する。
+
+## 問題の詳細
+
+| 項目 | 内容 |
+|------|------|
+| **発生箇所** | `/test/notifications` |
+| **問題** | 通知タイトル横のアバターがフォールバックアイコンで表示され、実際のアバター画像が表示されない |
+| **原因** | バックエンドAPIから`actorOrgMembers.avatarUrl`が返されていない、または空文字/nullになっている |
+
+## 現状と理想
+
+### 現状
+- 通知タイトル横のアバターがフォールバックアイコン（CircleUser）で表示される
+
+### 理想
+- 通知タイトル横にアクターの実際のアバター画像が表示される
+
+## 原因分析
+
+### データフロー
+1. バックエンドAPI (`/organizations/{id}/notifications`) がレスポンスを返す
+2. `notificationAdapter.ts` で `actorOrgMembers` から `avatarUrl` を取得
+3. 各 `NotificationItem*.tsx` で `UserAvatar` コンポーネントに渡す
+4. `UserAvatar` で `avatarUrl` が空の場合はフォールバック表示
+
+### 問題箇所
+- `src/lib/adapters/notificationAdapter.ts` (34-50行目)
+- バックエンドAPIのレスポンスで `actorOrgMembers[].avatarUrl` が欠損している可能性
+
+## 調査・修正対象
+
+| 対象 | 確認内容 |
+|------|----------|
+| バックエンドAPI | `actorOrgMembers[].avatarUrl` が返されているか確認 |
+| `src/lib/adapters/notificationAdapter.ts` | avatarUrlの変換処理 |
+| `src/features/notifications/components/NotificationItem*.tsx` | アバター表示処理 |
+
+## 影響範囲
+
+| ファイル | 変更内容 |
+|----------|----------|
+| バックエンドAPI | `avatarUrl`をレスポンスに含める（必要な場合） |
+| `src/lib/adapters/notificationAdapter.ts` | avatarUrl取得ロジックの修正（必要な場合） |
+
+## テスト観点
+
+- [ ] 各通知タイプでアクターのアバター画像が表示されること
+- [ ] 複数アクターがいる場合は重ねて表示されること
+- [ ] アバターURLが本当にない場合のみフォールバックが表示されること
