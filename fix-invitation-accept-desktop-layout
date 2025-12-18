@@ -1,0 +1,104 @@
+# 招待検証画面 改善仕様書
+
+## 概要
+
+招待検証中の画面において、デスクトップ表示時のレイアウト問題とトースト通知のメッセージを改善する。
+
+## 現状の問題
+
+### 1. レイアウトの問題
+
+- **原因**: レイアウトの二重構造
+  - `src/app/(public)/layout.tsx`: `h-svh` で画面全体の高さを確保
+  - `src/app/(public)/invitation/accept/page.tsx`: `min-h-screen` で再度画面全体の高さを確保
+- **症状**: デスクトップで見ると、細長い枠（Card）がモバイルサイズで表示され、その下に余分な空白エリアが見える
+
+### 2. Card の幅の問題
+
+- **原因**: `max-w-md`（448px）が常に適用
+- **症状**: デスクトップでも細長いカードが表示される
+
+### 3. トースト通知の問題
+
+- **原因**: `toast.success(response.message || "参加しました")` でバックエンドの `response.message`（"success"）をそのまま表示
+- **症状**: トーストに "success" と英語で表示される
+
+## 改善内容
+
+### 1. レイアウト修正
+
+**対象ファイル**: `src/app/(public)/invitation/accept/page.tsx`
+
+| 項目     | Before                                                                | After                                                      |
+| -------- | --------------------------------------------------------------------- | ---------------------------------------------------------- |
+| 外側 div | `min-h-screen flex-col items-center justify-center bg-slate-50 p-8`   | `flex flex-col items-center justify-center bg-slate-50 p-8` |
+| 説明     | `min-h-screen` を削除（親の layout.tsx で既に `h-svh` が適用されているため） |                                                            |
+
+### 2. Card 幅のレスポンシブ対応
+
+**対象ファイル**: `src/app/(public)/invitation/accept/page.tsx`
+
+| 項目   | Before                        | After                                             |
+| ------ | ----------------------------- | ------------------------------------------------- |
+| Card   | `h-[320px] w-full max-w-md`   | `h-[320px] w-full max-w-md md:max-w-lg lg:max-w-xl` |
+| 説明   | デスクトップでは幅を広げる（md: 512px, lg: 576px） |                                                   |
+
+### 3. トースト通知のメッセージ変更
+
+**対象ファイル**: `src/app/(public)/invitation/accept/page.tsx`
+
+| 項目         | Before                                            | After                              |
+| ------------ | ------------------------------------------------- | ---------------------------------- |
+| 成功時トースト | `toast.success(response.message \|\| "参加しました")` | `toast.success("招待が完了しました")` |
+| 説明         | バックエンドのメッセージに依存せず、固定の日本語メッセージを表示 |                                    |
+
+## 変更箇所まとめ
+
+### レイアウト変更（119-127 行目）
+
+```tsx
+// Before
+return (
+  <div className="flex min-h-screen flex-col items-center justify-center bg-slate-50 p-8">
+    <Card className="flex h-[320px] w-full max-w-md items-center justify-center border-none shadow-md">
+      ...
+    </Card>
+  </div>
+);
+
+// After
+return (
+  <div className="flex flex-col items-center justify-center bg-slate-50 p-8">
+    <Card className="flex h-[320px] w-full max-w-md md:max-w-lg lg:max-w-xl items-center justify-center border-none shadow-md">
+      ...
+    </Card>
+  </div>
+);
+```
+
+### トースト変更（51 行目）
+
+```tsx
+// Before
+toast.success(response.message || "参加しました");
+
+// After
+toast.success("招待が完了しました");
+```
+
+## 影響範囲
+
+- 招待検証画面（`/invitation/accept`）のみ
+- 他の画面への影響なし
+
+## テスト観点
+
+1. **デスクトップ表示**
+   - 細長い枠ではなく、適切な幅の Card が中央に表示されること
+   - 余分な空白エリアが表示されないこと
+
+2. **モバイル表示**
+   - 従来通り `max-w-md` のサイズで表示されること
+
+3. **トースト通知**
+   - 招待成功時に「招待が完了しました」と日本語で表示されること
