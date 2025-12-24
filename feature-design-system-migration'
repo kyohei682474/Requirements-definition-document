@@ -1,0 +1,186 @@
+
+# デザインシステム移行仕様書
+
+## 概要
+
+Figma デザインシステムと実装を統一し、デザインの一貫性と開発体験を向上させる。
+
+## 目的
+
+- Figma で定義されたカラーを globals.css に反映
+- Figma のグローバルコンポーネントを実装に反映
+- 既存のデザイン崩れを防ぎながら段階的に移行
+- Light/Dark モード両対応
+
+---
+
+# Phase 1: カラーシステム移行
+
+## 移行ルール
+
+### 1. CSS 変数の領域構成
+
+```css
+:root {
+  /* ========== /new/ ========== */
+  /* Figmaの新カラー（移行済み・変更なしも含む） */
+
+  /* ========== /:old:/ ========== */
+  /* 旧カラー（-old サフィックス付き） */
+}
+```
+
+### 2. 命名規則
+
+| 状態                   | 命名               | 配置領域  |
+| ---------------------- | ------------------ | --------- |
+| 新規追加               | `--color-name`     | `/new/`   |
+| 変更なし               | `--color-name`     | `/new/`   |
+| 旧カラー（エスケープ） | `--color-name-old` | `/:old:/` |
+
+### 3. 移行フロー
+
+1. 既存カラーに `-old` を付けて `/:old:/` 領域に移動
+2. Figma のカラー値で新しい変数を `/new/` 領域に定義
+3. コンポーネント側で順次 `-old` から新変数に置き換え
+4. 全置き換え完了後、`/:old:/` 領域を削除
+
+---
+
+## Figma カラー定義（colors v3）
+
+### Etc 系（基本色）
+
+| 変数名                 | Light Mode               | Dark Mode                  |
+| ---------------------- | ------------------------ | -------------------------- |
+| `--primary-fg`         | #FFFFFF                  | #FFFFFF                    |
+| `--default-bg`         | #E8EEF4                  | colors v3/border/border og |
+| `--default-bg-grey`    | colors v3/border/border2 | #2D2D32                    |
+| `--default-fg`         | #000000                  | #D4D4D8                    |
+| `--card-bg`            | #FFFFFF                  | #242428                    |
+| `--card-bg-grey`       | colors v3/border/border2 | colors v3/card bg          |
+| `--card-bg-light-grey` | colors v3/border/border1 | #28282E                    |
+| `--card-fg`            | #000000                  | #D4D4D8                    |
+| `--muted-fg`           | #909398                  | #898E98                    |
+| `--muted-bg`           | #FFFFFF                  | #404048                    |
+| `--link`               | #69B1FF                  | #69B1FF                    |
+| `--highlight`          | #4678F2                  | #4678F2                    |
+| `--dark-grey-text`     | #5F6061                  | #FFFFFF                    |
+
+### Border 系
+
+| 変数名          | Light Mode | Dark Mode            |
+| --------------- | ---------- | -------------------- |
+| `--border1`     | #F9FAFB    | etc/default bg muted |
+| `--border2`     | #F0F2F5    | etc/default bg muted |
+| `--border3`     | #E1E5EB    | etc/default bg muted |
+| `--border4`     | #D1D8E0    | etc/default bg muted |
+| `--border6`     | #9198A0    | colors v3/default fg |
+| `--border8`     | #313336    | #E9E9E9              |
+| `--border` (og) | #C2CBD6    | etc/default bg muted |
+
+### Colors 系
+
+| 変数名               | Light Mode | Dark Mode |
+| -------------------- | ---------- | --------- |
+| `--destructive6`     | #B33333    | #A51D1D   |
+| `--destructive` (og) | #EF4444    | #DC2626   |
+| `--destructive4`     | #F37373    | #E55C5C   |
+| `--red-bg`           | #FFE1E1    | #FFE1E1   |
+| `--green`            | #64C465    | #5CB338   |
+| `--blue1`            | #1D3B9E    | #344CB7   |
+| `--blue2`            | #566CB6    | #6779C9   |
+| `--blue3`            | #C7CEE7    | #CCD2ED   |
+| `--blue-bg`          | #DDE4FF    | #344CB7   |
+
+---
+
+# Phase 2: コンポーネント作成
+
+## 対象コンポーネント一覧（Figma グローバルコンポーネント）
+
+| No  | コンポーネント名       | 説明                       | 優先度 |
+| --- | ---------------------- | -------------------------- | ------ |
+| 1   | icon sizes             | アイコンサイズバリエーション | 高     |
+| 2   | Nav                    | ナビゲーション             | 高     |
+| 3   | Buttons                | ボタンバリエーション       | 高     |
+| 4   | Modal                  | モーダルダイアログ         | 高     |
+| 5   | G Card Component       | ゴールカードコンポーネント | 中     |
+| 6   | G Parent G             | 親ゴールコンポーネント     | 中     |
+| 7   | Screen Tint            | スクリーンオーバーレイ     | 中     |
+| 8   | ファイルツリー Component | ファイルツリー表示         | 中     |
+| 9   | Todo Component         | Todo アイテム              | 中     |
+| 10  | goal card component    | ゴールカード               | 低     |
+
+## コンポーネント作成ルール
+
+### 配置場所
+
+```
+src/components/ui/          # shadcn/ui ベースのコンポーネント
+├── button.tsx
+├── switch.tsx
+├── modal.tsx
+└── ...
+```
+
+### 作成フロー
+
+1. Figma でコンポーネント仕様を確認
+2. `/preview` ページにプレビュー用セクション追加
+3. コンポーネント実装
+4. Light/Dark モードで表示確認
+5. 既存コンポーネントとの差分確認・調整
+
+---
+
+# Phase 3: 実装チェックリスト
+
+## カラー移行
+
+- [ ] globals.css に `/new/` 領域作成
+- [ ] globals.css に `/:old:/` 領域作成
+- [ ] Border 系カラー移行
+- [ ] Colors 系カラー移行
+- [ ] Etc 系（基本色）カラー移行
+- [ ] Dark モード対応
+
+## コンポーネント作成
+
+- [ ] Switch（Figma サイズ: 26x22px に調整）
+- [ ] Buttons
+- [ ] Modal
+- [ ] icon sizes
+- [ ] Nav
+- [ ] G Card Component
+- [ ] Screen Tint
+- [ ] ファイルツリー Component
+- [ ] Todo Component
+
+## 確認・テスト
+
+- [ ] `/preview` ページで全コンポーネント確認
+- [ ] Light モード表示確認
+- [ ] Dark モード表示確認
+- [ ] 既存画面でのデザイン崩れチェック
+
+---
+
+# 開発用プレビューページ
+
+## URL
+
+```
+http://localhost:3000/preview
+```
+
+## 用途
+
+- コンポーネントの実装確認
+- Light/Dark モード切り替えテスト
+- Figma との比較確認
+
+## 注意
+
+- 開発完了後に削除すること
+- 本番環境には含めないこと
