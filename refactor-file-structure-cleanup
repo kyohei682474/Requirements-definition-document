@@ -1,0 +1,143 @@
+# ファイル整理・クリーンアップ仕様書
+
+## 概要
+
+CLAUDE.mdのルールに準拠するため、不要なファイルの削除とファイル配置の修正を行う。
+
+## 現状分析
+
+### CLAUDE.mdのファイル配置ルール
+
+| 許可 | 禁止 |
+|------|------|
+| `src/features/*` | `src/components/*` (触らない) |
+| `src/hooks/swr/*` | `src/hooks/*` (swr, mutations以外) |
+| `src/hooks/mutations/*` | `src/[feature-name]/*` (deprecated) |
+| `src/lib/api/*` | `src/lib/types/*` (使用禁止) |
+| `src/types/models/*` | |
+
+---
+
+## Phase 1: 未使用ファイルの削除
+
+### 削除対象ファイル（3件）
+
+| ファイル | 理由 |
+|----------|------|
+| `src/hooks/get-root-objective-utils.ts` | 他ファイルからのimportなし |
+| `src/hooks/use-objective-dashborad.ts` | 他ファイルからのimportなし（typoあり） |
+| `src/lib/hooks/use-drawer-lifecycle.ts` | 他ファイルからのimportなし |
+
+### 作業手順
+
+1. 各ファイルが本当に未使用か再確認（grep検索）
+2. ファイル削除
+3. TypeScriptビルド確認
+4. コミット
+
+---
+
+## Phase 2: CLAUDE.md違反ファイルの対応
+
+### 2.1 `src/hooks/` 直下のファイル（6件使用中）
+
+| ファイル | 使用箇所 | 対応方針 |
+|----------|----------|----------|
+| `use-drawer.ts` | `src/components/comments/` | components内で使用 → 移動不要（componentsは触らない） |
+| `use-objective-search.ts` | `src/components/obj-tree/` | 同上 |
+| `use-organization-switch.ts` | `src/components/layouts/`, `src/components/` | 同上 |
+| `use-is-touch-device.ts` | `src/components/comments/` | 同上 |
+| `useMobile.ts` | `src/components/ui/sidebar.tsx` | 同上 |
+| `useOrganizationId.ts` | `src/features/todo/` | deprecated指定だが使用中 → 別途対応 |
+
+**結論**:
+- これらのフックは主に `src/components/` から使用されており、componentsは触らないルールのため、現時点では移動しない
+- `useOrganizationId.ts` は `useOrganizationContext()` に置き換えるべきだが、別タスクとして対応
+
+### 2.2 `src/lib/types/` のファイル
+
+| ファイル | 使用状況 | 対応方針 |
+|----------|----------|----------|
+| `stepItem.ts` | 多数のファイルで使用 | `src/types/models/` へ移行 |
+| `stepItemAssignment.ts` | 多数のファイルで使用 | `src/types/models/` へ移行 |
+| `stepMap.ts` | 多数のファイルで使用 | `src/types/models/` へ移行 |
+| `kpi.ts` | KPI関連で使用 | `src/types/models/kpi.ts` に統合 |
+| `kpiMemberRecord.ts` | KPI関連で使用 | `src/types/models/` へ移行 |
+| `kpiVersion.ts` | KPI関連で使用 | `src/types/models/` へ移行 |
+| `organizationMember.ts` | 多数のファイルで使用 | `src/types/models/` へ移行 |
+| `organizationInvitation.ts` | 招待機能で使用 | `src/types/models/` へ移行 |
+| `recurring-goal.ts` | 最も使用が多い | `src/types/models/` へ移行 |
+| `timed-objective.ts` | 複数箇所で使用 | `src/types/models/` へ移行 |
+
+**作業手順**:
+1. `src/types/models/` に新規ファイル作成
+2. 型定義を移動
+3. import パスを一括置換
+4. ビルド確認
+5. 旧ファイル削除
+
+### 2.3 Deprecated ディレクトリ
+
+| ディレクトリ | ファイル数 | 参照状況 | 対応方針 |
+|--------------|-----------|----------|----------|
+| `src/goals/` | 58件 | 多数のfeaturesから参照 | 大規模 → 別タスク |
+| `src/home/` | 15件 | 部分的に参照 | 中規模 → 別タスク |
+| `src/objective-panel-list/` | 9件 | 複数箇所から参照 | 小規模 → 検討 |
+
+**結論**:
+- これらは大規模な変更となるため、本タスクでは対応しない
+- 将来の移行計画として記録
+
+---
+
+## 実行計画
+
+### 本タスクで実施する内容
+
+1. **Phase 1: 未使用ファイル削除**（3件）
+   - `src/hooks/get-root-objective-utils.ts`
+   - `src/hooks/use-objective-dashborad.ts`
+   - `src/lib/hooks/use-drawer-lifecycle.ts`
+
+2. **Phase 2: `src/lib/types/` の移行**
+   - 10件の型ファイルを `src/types/models/` に移行
+   - import パスの一括更新
+
+### 本タスクでは実施しない内容（将来タスク）
+
+- `src/hooks/` 直下のフック移動（componentsから使用されているため）
+- `src/goals/` の移行（大規模）
+- `src/home/` の移行（中規模）
+- `src/objective-panel-list/` の移行（要検討）
+- `useOrganizationId.ts` の廃止（useOrganizationContext()への移行）
+
+---
+
+## リスク管理
+
+| リスク | 対策 |
+|--------|------|
+| import パス変更漏れ | TypeScriptビルドで検証 |
+| 循環参照の発生 | 移行前に依存関係を確認 |
+| 既存機能の破損 | 各Phase後にビルド・動作確認 |
+
+---
+
+## 完了条件
+
+- [ ] 未使用ファイル3件の削除完了
+- [ ] `src/lib/types/` から `src/types/models/` への移行完了
+- [ ] TypeScriptビルドが成功する
+- [ ] lint エラーがない
+
+---
+
+## ブランチ名
+
+```
+chore/cleanup-unused-files-and-migrate-types
+```
+
+**代替案:**
+- `refactor/file-structure-cleanup`
+- `chore/claude-md-compliance`
