@@ -1,0 +1,71 @@
+# ゴール一括編集機能 復活仕様書
+
+## 概要
+
+ゴール詳細ページで「ゴールの全体像」（一括編集）機能へのアクセスが表示されない問題を修正する
+
+---
+
+## 原因
+
+**ファイル**: `src/goals/[id]/hooks/useEditPermission.ts`
+
+**問題箇所**: 19行目
+
+```tsx
+if (child.owner?.id === currentUserId) {
+```
+
+| 変数 | 取得元 | 値の種類 |
+|------|--------|----------|
+| `child.owner?.id` | API レスポンス | `user.id` |
+| `currentUserId` | `useAuth()` (Clerk) | Clerk `userId` |
+
+**問題**: `owner.id` と Clerk の `userId` を比較しているが、APIが返す `owner.id` の形式と Clerk の `userId` が一致しない可能性がある
+
+**他のコードでの比較方法**:
+- `KpiSection.tsx`: `objective.owner.id === currentUser.id` （useCurrentUserSWR使用）
+- `RecentlyViewedGoals.tsx`: `goal.owner?.id === currentOrganizationMember?.userId`
+
+---
+
+## 修正方針
+
+`useEditPermission.ts` の ID 比較を、他のコードと同じ方法に統一する
+
+**修正案**: `useCurrentUserSWR` を使用して `currentUser.id` と比較
+
+```tsx
+// Before
+const { userId: currentUserId } = useAuth();
+if (child.owner?.id === currentUserId) { ... }
+
+// After
+const { data: currentUser } = useCurrentUserSWR();
+if (child.owner?.id === currentUser?.id) { ... }
+```
+
+---
+
+## 影響範囲
+
+`useEditPermission` を使用しているコンポーネント:
+
+1. **BulkEditMenuItem.tsx** - ゴールの全体像ボタン/メニュー
+2. **EditableChildGoalsList.tsx** - サブゴールリストのヘッダー
+
+---
+
+## 確認項目
+
+修正後に以下を確認:
+
+- [ ] ゴール詳細ページのサブゴールリストヘッダーに「ゴールの全体像」ボタンが表示される
+- [ ] ボタンクリックで `/goals/[id]/edit-children` に遷移する
+- [ ] オーナー以外のユーザーには表示されない（権限チェックが正常動作）
+
+---
+
+## 追加対応（任意）
+
+三点リーダーメニュー（Popover.tsx）にも `BulkEditMenuItem` を追加するかどうか検討
